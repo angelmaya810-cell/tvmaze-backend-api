@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # TVMaze API
 
 API middleware desarrollada en Java y Spring Boot para consultar TVMaze, almacenar shows en caché y asociar comentarios con calificaciones.
