@@ -1,0 +1,13 @@
+target/
+.mvn/repository/
+.idea/
+.vscode/
+*.iml
+*.log
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.yaml
+tmp/
+*.pdf
