@@ -1,3 +1,10 @@
 spring:
   application:
     name: tvmaze-api
+
+clients:
+  tvmaze:
+    base-url: ${TVMAZE_BASE_URL:https://api.tvmaze.com}
+    connect-timeout: ${TVMAZE_CONNECT_TIMEOUT:2s}
+    read-timeout: ${TVMAZE_READ_TIMEOUT:5s}
+    user-agent: ${TVMAZE_USER_AGENT:coppel-tvmaze-api/0.0.1}
