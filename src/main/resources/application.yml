@@ -1,6 +1,9 @@
 spring:
   application:
     name: tvmaze-api
+  data:
+    mongodb:
+      auto-index-creation: true
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/tvmaze}
 

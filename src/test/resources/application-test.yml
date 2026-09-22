@@ -1,4 +1,7 @@
 spring:
+  data:
+    mongodb:
+      auto-index-creation: false
   mongodb:
     uri: mongodb://127.0.0.1:27017/tvmaze-test?connectTimeoutMS=100&serverSelectionTimeoutMS=100
 

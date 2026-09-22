@@ -4,9 +4,9 @@ API middleware desarrollada en Java y Spring Boot para consultar TVMaze, almacen
 
 ## Estado
 
-Paso 5 completado: búsqueda, consulta individual y caché de shows con MongoDB.
+Paso 6 completado: búsqueda, caché de shows y creación de comentarios con calificación.
 
-Los comentarios se incorporarán de forma incremental en los siguientes pasos de la prueba técnica.
+Los comentarios se incorporarán a las respuestas de búsqueda y detalle en los siguientes pasos de la prueba técnica.
 
 ## Requisitos
 
@@ -75,6 +75,36 @@ La consulta utiliza un caché persistente:
 
 Las solicitudes simultáneas pueden consultar TVMaze más de una vez ante el mismo fallo de caché, pero las escrituras son idempotentes porque el ID del show se utiliza como `_id`.
 
+## Crear comentarios
+
+Registra un comentario y una calificación para un show existente:
+
+```http
+POST /api/v1/shows/1/comments
+Content-Type: application/json
+```
+
+```json
+{
+  "comment": "Great show",
+  "rating": 5
+}
+```
+
+La respuesta utiliza `201 Created`:
+
+```json
+{
+  "status": "CREATED",
+  "commentId": "68d17b9510b2ac45f2931234",
+  "showId": 1
+}
+```
+
+El comentario es obligatorio, se normalizan los espacios de sus extremos y se permiten hasta 1,000 caracteres. La calificación debe ser un número entero entre 0 y 5. Antes de guardar se comprueba la existencia del show usando el flujo de caché; un show inexistente devuelve `404 Not Found` y no genera comentarios huérfanos.
+
+Los comentarios se almacenan en una colección independiente llamada `comments`, con un índice ascendente por `show_id` y `created_at`. Separarlos de `shows_cache` evita duplicarlos o invalidar el caché cada vez que se agrega uno nuevo.
+
 ## MongoDB
 
 La aplicación utiliza la variable de entorno `MONGODB_URI`. Si no está definida, utiliza por defecto una base local:
@@ -120,3 +150,11 @@ La colección utilizada es `shows_cache`. Cada documento utiliza el ID de TVMaze
 3. En Atlas, abre Data Explorer y comprueba que exista `tvmaze.shows_cache` con `_id: 1`.
 4. Anota el valor de `cached_at` y repite la misma petición.
 5. Comprueba que `cached_at` no cambió; esto demuestra que la segunda respuesta salió del caché y no volvió a guardarse.
+
+### Verificación de comentarios en Atlas
+
+1. Ejecuta el `POST /api/v1/shows/1/comments` desde Postman.
+2. Comprueba que la respuesta sea `201 Created` y contenga `commentId`.
+3. En Data Explorer abre `tvmaze.comments`.
+4. Comprueba que el documento tenga `show_id`, `comment`, `rating` y `created_at`.
+5. En la pestaña de índices comprueba que exista `show_id_created_at_idx`.

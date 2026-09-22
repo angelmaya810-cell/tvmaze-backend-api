@@ -49,7 +49,7 @@ class ShowSearchControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Request validation failed"))
                 .andExpect(jsonPath("$.detail")
-                        .value("One or more request parameters are invalid"));
+                        .value("search_query must not be blank"));
     }
 
     @Test
