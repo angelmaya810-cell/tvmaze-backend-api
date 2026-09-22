@@ -32,7 +32,7 @@ Los paquetes principales son `show`, `comment` y `common`. Esta organización fa
 ## Requisitos
 
 - JDK 21
-- Docker Desktop, si se usará MongoDB local; o una cuenta de MongoDB Atlas
+- Docker Desktop (opcional), si se usará MongoDB local; o una cuenta de MongoDB Atlas
 - Acceso a `https://api.tvmaze.com`
 
 No es necesario instalar Maven: el repositorio incluye Maven Wrapper.
