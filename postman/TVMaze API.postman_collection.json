@@ -1,0 +1,162 @@
+{
+  "info": {
+    "_postman_id": "382af9c6-c095-4ba6-9030-4111e21381c2",
+    "name": "TVMaze API",
+    "description": "Colección de prueba para búsqueda, detalle y comentarios de series.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Search shows",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/shows/search?search_query={{searchQuery}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "shows",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "search_query",
+              "value": "{{searchQuery}}"
+            }
+          ]
+        },
+        "description": "Busca series en TVMaze y agrega los comentarios almacenados localmente."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response is an array\", function () {",
+              "    pm.expect(pm.response.json()).to.be.an(\"array\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get show detail",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/shows/{{showId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "shows",
+            "{{showId}}"
+          ]
+        },
+        "description": "Obtiene el detalle de una serie usando cache-aside y agrega sus comentarios."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response includes comments\", function () {",
+              "    pm.expect(pm.response.json()).to.have.property(\"comments\").that.is.an(\"array\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create comment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"comment\": \"Muy buena serie\",\n  \"rating\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/shows/{{showId}}/comments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "shows",
+            "{{showId}}",
+            "comments"
+          ]
+        },
+        "description": "Valida que la serie exista y guarda un comentario con calificación de 0 a 5."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Comment was created\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.status).to.eql(\"CREATED\");",
+              "    pm.expect(body.showId).to.eql(Number(pm.collectionVariables.get(\"showId\")));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "showId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "searchQuery",
+      "value": "under the dome",
+      "type": "string"
+    }
+  ]
+}

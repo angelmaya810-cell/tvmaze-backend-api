@@ -1,65 +1,124 @@
 # TVMaze API
 
-API middleware desarrollada en Java y Spring Boot para consultar TVMaze, almacenar shows en caché y asociar comentarios con calificaciones.
+API REST desarrollada para la prueba técnica. Consulta series en [TVMaze](https://www.tvmaze.com/api), conserva el detalle de cada serie en MongoDB y permite registrar comentarios con una calificación de 0 a 5.
 
-## Estado
+## Funcionalidad
 
-Paso 8 completado: búsqueda y detalle enriquecidos, caché de shows y comentarios con calificación.
+- Busca series por texto y devuelve `id`, nombre, canal, resumen, géneros y comentarios.
+- Obtiene el detalle completo de una serie y agrega sus comentarios locales.
+- Guarda comentarios y calificaciones en MongoDB.
+- Aplica cache-aside al detalle: primero consulta MongoDB y, si no existe, consulta TVMaze y guarda la respuesta.
+- Valida entradas y responde errores en formato `application/problem+json`.
 
-Los tres endpoints funcionales solicitados están implementados. El siguiente paso corresponde al cierre de documentación y entrega.
+## Tecnologías y diseño
+
+- Java 21
+- Spring Boot 4.1.1
+- Spring Web y Bean Validation
+- Spring Data MongoDB
+- Maven Wrapper
+- JUnit 5, Mockito y MockMvc
+
+La aplicación separa controladores, casos de uso, dominio y adaptadores externos. Los servicios dependen de puertos y no de los detalles de TVMaze o MongoDB:
+
+```text
+HTTP -> Controllers -> Application services -> Output ports
+                                                |-> TVMaze HTTP adapter
+                                                `-> MongoDB adapters
+```
+
+Los paquetes principales son `show`, `comment` y `common`. Esta organización facilita probar cada regla de manera aislada y sustituir una integración sin modificar los casos de uso.
 
 ## Requisitos
 
-- JDK 21 o posterior.
-- No se requiere una instalación global de Maven; el repositorio incluye Maven Wrapper.
+- JDK 21
+- Docker Desktop, si se usará MongoDB local; o una cuenta de MongoDB Atlas
+- Acceso a `https://api.tvmaze.com`
 
-## Verificación
+No es necesario instalar Maven: el repositorio incluye Maven Wrapper.
 
-En Windows:
+## Ejecución rápida
+
+### Opción A: MongoDB local con Docker
+
+Desde la raíz del proyecto:
 
 ```powershell
-.\mvnw.cmd verify
+docker compose up -d mongodb
+.\mvnw.cmd spring-boot:run
 ```
 
 En Linux o macOS:
 
-```shell
-./mvnw verify
+```bash
+docker compose up -d mongodb
+./mvnw spring-boot:run
 ```
 
-## Búsqueda de shows
+La configuración predeterminada usa `mongodb://localhost:27017/tvmaze`.
 
-Inicia la aplicación:
+### Opción B: MongoDB Atlas
+
+1. En Atlas, crea un usuario con acceso de lectura y escritura a la base `tvmaze`.
+2. Autoriza la IP desde la que ejecutarás la aplicación.
+3. Copia la cadena de conexión y agrega `/tvmaze` antes de sus parámetros.
+4. Define la variable y arranca la aplicación **en la misma terminal**.
+
+PowerShell:
 
 ```powershell
+$env:MONGODB_URI='mongodb+srv://USUARIO:CONTRASENA@CLUSTER/tvmaze?retryWrites=true&w=majority'
 .\mvnw.cmd spring-boot:run
 ```
 
-Consulta shows por nombre:
+Bash:
+
+```bash
+export MONGODB_URI='mongodb+srv://USUARIO:CONTRASENA@CLUSTER/tvmaze?retryWrites=true&w=majority'
+./mvnw spring-boot:run
+```
+
+Si la contraseña contiene caracteres especiales, debe codificarse para poder usarse dentro de una URL. El archivo `.env.example` solo sirve como referencia: Spring Boot no carga un archivo `.env` automáticamente. No guardes una URI real en el repositorio.
+
+Cuando aparezca el mensaje `Started TvMazeApiApplication`, la API estará disponible en `http://localhost:8080`.
+
+## Configuración
+
+| Variable | Valor predeterminado | Uso |
+|---|---|---|
+| `MONGODB_URI` | `mongodb://localhost:27017/tvmaze` | Conexión a MongoDB |
+| `TVMAZE_BASE_URL` | `https://api.tvmaze.com` | URL base del proveedor |
+| `TVMAZE_CONNECT_TIMEOUT` | `2s` | Tiempo máximo para abrir la conexión |
+| `TVMAZE_READ_TIMEOUT` | `5s` | Tiempo máximo de lectura |
+| `TVMAZE_USER_AGENT` | `coppel-tvmaze-api/0.0.1` | Identificación del cliente HTTP |
+
+## API
+
+| Método | Ruta | Resultado correcto |
+|---|---|---|
+| `GET` | `/api/v1/shows/search?search_query={texto}` | `200 OK` |
+| `GET` | `/api/v1/shows/{showId}` | `200 OK` |
+| `POST` | `/api/v1/shows/{showId}/comments` | `201 Created` |
+
+### Buscar series
 
 ```http
-GET /api/v1/shows/search?search_query=girls
+GET /api/v1/shows/search?search_query=under%20the%20dome
 ```
 
-Ejemplo con `curl`:
-
-```shell
-curl "http://localhost:8080/api/v1/shows/search?search_query=girls"
-```
-
-Cada resultado contiene `id`, `name`, `channel`, `summary`, `genres` y `comments`:
+Ejemplo de respuesta:
 
 ```json
 [
   {
-    "id": 139,
-    "name": "Girls",
-    "channel": "HBO",
-    "summary": "<p>Summary</p>",
-    "genres": ["Drama", "Romance"],
+    "id": 1,
+    "name": "Under the Dome",
+    "channel": "CBS",
+    "summary": "<p>Under the Dome...</p>",
+    "genres": ["Drama", "Science-Fiction", "Thriller"],
     "comments": [
       {
-        "comment": "Great show",
+        "comment": "Muy buena serie",
         "rating": 5
       }
     ]
@@ -67,148 +126,157 @@ Cada resultado contiene `id`, `name`, `channel`, `summary`, `genres` y `comments
 ]
 ```
 
-El canal se obtiene de `network.name` y, cuando no existe, de `webChannel.name`. Los comentarios se consultan para todos los IDs mediante una sola operación de MongoDB, se agrupan por show y se ordenan cronológicamente. Así se evita realizar una consulta adicional por cada resultado.
+Una búsqueda sin coincidencias devuelve `[]`. `search_query` es obligatorio y no puede estar vacío.
 
-Cuando un show no tiene comentarios, `comments` contiene un arreglo vacío. El orden de relevancia entregado por TVMaze no se modifica.
-
-Los datos de los shows son proporcionados por [TVMaze](https://www.tvmaze.com/api) bajo su licencia CC BY-SA.
-
-## Detalle de un show
-
-Consulta un show por su ID de TVMaze:
+### Obtener el detalle de una serie
 
 ```http
 GET /api/v1/shows/1
 ```
 
-Ejemplo con `curl`:
-
-```shell
-curl "http://localhost:8080/api/v1/shows/1"
-```
-
-La respuesta conserva el objeto completo entregado por TVMaze y agrega los comentarios actuales:
+La respuesta conserva los campos entregados por TVMaze y agrega `comments`:
 
 ```json
 {
   "id": 1,
   "name": "Under the Dome",
+  "language": "English",
   "genres": ["Drama", "Science-Fiction", "Thriller"],
+  "status": "Ended",
   "comments": [
     {
-      "comment": "Great show",
+      "comment": "Muy buena serie",
       "rating": 5
     }
   ]
 }
 ```
 
-Un ID inexistente devuelve `404 Not Found` y un ID que no sea positivo devuelve `400 Bad Request`. Cuando no existen comentarios, la respuesta incluye `"comments": []`.
+La primera consulta de un ID obtiene el detalle de TVMaze y lo guarda en `shows_cache`; las siguientes lecturas usan MongoDB. Los comentarios se consultan siempre por separado para que el detalle almacenado no quede desactualizado.
 
-La consulta utiliza un caché persistente:
-
-1. Busca el ID en la colección `shows_cache` de MongoDB.
-2. Si existe, devuelve el objeto almacenado sin consultar TVMaze.
-3. Si no existe, consulta TVMaze, guarda la respuesta completa y la devuelve.
-
-Las solicitudes simultáneas pueden consultar TVMaze más de una vez ante el mismo fallo de caché, pero las escrituras son idempotentes porque el ID del show se utiliza como `_id`.
-
-Los comentarios se consultan por separado en cada lectura del detalle, incluso si el show proviene del caché. De esta manera siempre están actualizados y no se modifica ni duplica el objeto almacenado en `shows_cache`.
-
-## Crear comentarios
-
-Registra un comentario y una calificación para un show existente:
+### Crear un comentario
 
 ```http
 POST /api/v1/shows/1/comments
 Content-Type: application/json
-```
 
-```json
 {
-  "comment": "Great show",
+  "comment": "Muy buena serie",
   "rating": 5
 }
 ```
 
-La respuesta utiliza `201 Created`:
+Respuesta:
 
 ```json
 {
   "status": "CREATED",
-  "commentId": "68d17b9510b2ac45f2931234",
+  "commentId": "identificador-generado",
   "showId": 1
 }
 ```
 
-El comentario es obligatorio, se normalizan los espacios de sus extremos y se permiten hasta 1,000 caracteres. La calificación debe ser un número entero entre 0 y 5. Antes de guardar se comprueba la existencia del show usando el flujo de caché; un show inexistente devuelve `404 Not Found` y no genera comentarios huérfanos.
+Reglas de validación:
 
-Los comentarios se almacenan en una colección independiente llamada `comments`, con un índice ascendente por `show_id` y `created_at`. Separarlos de `shows_cache` evita duplicarlos o invalidar el caché cada vez que se agrega uno nuevo.
+- `showId` debe ser mayor que cero y debe existir en TVMaze.
+- `comment` es obligatorio, no acepta solo espacios y admite hasta 1000 caracteres.
+- `rating` es un entero obligatorio entre 0 y 5.
 
-## MongoDB
+## Errores
 
-La aplicación utiliza la variable de entorno `MONGODB_URI`. Si no está definida, utiliza por defecto una base local:
+Los errores controlados usan `application/problem+json`.
 
-```text
-mongodb://localhost:27017/tvmaze
+| Estado | Caso |
+|---|---|
+| `400 Bad Request` | Parámetro, ID o cuerpo inválido |
+| `404 Not Found` | La serie no existe |
+| `502 Bad Gateway` | TVMaze no está disponible o entrega una respuesta inválida |
+
+Ejemplo:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Request validation failed",
+  "status": 400,
+  "detail": "rating must be between 0 and 5",
+  "instance": "/api/v1/shows/1/comments"
+}
 ```
 
-### Desarrollo local con Docker
+## Persistencia
 
-Inicia MongoDB:
+MongoDB utiliza dos colecciones:
 
-```shell
-docker compose up -d mongodb
-```
+- `shows_cache`: `_id`, objeto `show` y fecha `cached_at`.
+- `comments`: `_id`, `show_id`, `comment`, `rating` y `created_at`.
 
-Después inicia la aplicación normalmente. Para detener MongoDB sin eliminar sus datos:
+La colección `comments` crea el índice compuesto `show_id_created_at_idx` para localizar y ordenar los comentarios de una serie. La búsqueda agrupa los IDs y realiza una sola consulta de comentarios, evitando una consulta por cada resultado.
 
-```shell
-docker compose down
-```
+## Probar con Postman
 
-### MongoDB Atlas
+1. Inicia la aplicación.
+2. Importa [`postman/TVMaze API.postman_collection.json`](postman/TVMaze%20API.postman_collection.json).
+3. Revisa las variables de colección: `baseUrl`, `showId` y `searchQuery`.
+4. Ejecuta `Search shows` para localizar una serie.
+5. Ejecuta `Create comment`.
+6. Ejecuta `Get show detail` y después `Search shows` para confirmar que aparece el comentario.
+7. En Atlas, opcionalmente verifica los documentos en `Browse Collections`, dentro de la base `tvmaze`.
 
-1. Crea un cluster gratuito.
-2. Crea un usuario exclusivo para la prueba con acceso `readWrite` únicamente a la base `tvmaze`.
-3. Agrega `0.0.0.0/0` en Network Access solamente porque la prueba solicita acceso sin restricción de IP.
-4. Copia la URI de conexión y define la variable antes de iniciar la aplicación:
+La colección no contiene usuarios, contraseñas ni cadenas de conexión.
+
+También puedes probar desde PowerShell:
 
 ```powershell
-$env:MONGODB_URI='mongodb+srv://USUARIO:CONTRASENA@CLUSTER/tvmaze?retryWrites=true&w=majority'
-.\mvnw.cmd spring-boot:run
+Invoke-RestMethod 'http://localhost:8080/api/v1/shows/search?search_query=girls'
+
+Invoke-RestMethod 'http://localhost:8080/api/v1/shows/1/comments' `
+  -Method Post `
+  -ContentType 'application/json' `
+  -Body '{"comment":"Recomendada","rating":5}'
+
+Invoke-RestMethod 'http://localhost:8080/api/v1/shows/1'
 ```
 
-Si el usuario o la contraseña contienen caracteres especiales, deben codificarse para una URI. Nunca guardes la URI real en `application.yml`, `.env.example` o Git. El acceso global de Atlas debe retirarse al terminar la evaluación.
+## Pruebas automatizadas
 
-La colección utilizada es `shows_cache`. Cada documento utiliza el ID de TVMaze como `_id`, conserva el show completo y registra `cached_at`.
+Windows:
 
-### Verificación del caché en Atlas
+```powershell
+.\mvnw.cmd clean verify
+```
 
-1. Inicia la aplicación con `MONGODB_URI` configurada.
-2. Ejecuta `GET http://localhost:8080/api/v1/shows/1` desde Postman.
-3. En Atlas, abre Data Explorer y comprueba que exista `tvmaze.shows_cache` con `_id: 1`.
-4. Anota el valor de `cached_at` y repite la misma petición.
-5. Comprueba que `cached_at` no cambió; esto demuestra que la segunda respuesta salió del caché y no volvió a guardarse.
+Linux o macOS:
 
-### Verificación de comentarios en Atlas
+```bash
+./mvnw clean verify
+```
 
-1. Ejecuta el `POST /api/v1/shows/1/comments` desde Postman.
-2. Comprueba que la respuesta sea `201 Created` y contenga `commentId`.
-3. En Data Explorer abre `tvmaze.comments`.
-4. Comprueba que el documento tenga `show_id`, `comment`, `rating` y `created_at`.
-5. En la pestaña de índices comprueba que exista `show_id_created_at_idx`.
+La suite contiene 42 pruebas unitarias y de capa web. Las integraciones HTTP y MongoDB están aisladas mediante dobles de prueba, por lo que no es necesario tener TVMaze o MongoDB disponibles para ejecutarla.
 
-### Verificación de comentarios en la búsqueda
+## Seguridad
 
-1. Crea un comentario para un show mediante `POST /api/v1/shows/{showId}/comments`.
-2. Busca por un texto que incluya ese show usando `GET /api/v1/shows/search?search_query=...`.
-3. Comprueba que el resultado correspondiente incluya el arreglo `comments` con `comment` y `rating`.
-4. Comprueba que los resultados sin comentarios incluyan `"comments": []`.
+- Nunca confirmes al repositorio credenciales, archivos `.env` reales o URIs de Atlas.
+- Usa un usuario de base de datos con los permisos mínimos necesarios.
+- Limita la lista de acceso de Atlas a las IP requeridas. Si la evaluación obliga a usar `0.0.0.0/0`, elimínala al terminar.
+- Rota inmediatamente cualquier contraseña que se haya mostrado en una captura, chat o historial de terminal.
+- El campo `summary` procede de TVMaze y puede contener HTML; cualquier cliente web debe sanitizarlo antes de renderizarlo.
 
-### Verificación de comentarios en el detalle
+## Lista de entrega
 
-1. Crea un comentario mediante `POST /api/v1/shows/1/comments`.
-2. Ejecuta `GET /api/v1/shows/1`.
-3. Comprueba que se conserve la respuesta completa de TVMaze y que `comments` contenga el comentario creado.
-4. Crea un segundo comentario y repite el `GET`; debe aparecer inmediatamente aunque el show ya exista en `shows_cache`.
+Antes de compartir el proyecto:
+
+```powershell
+.\mvnw.cmd clean verify
+git status
+git push origin main
+```
+
+Después comprueba que:
+
+- El repositorio remoto es privado.
+- El usuario de evaluación `Pinwox` fue agregado como colaborador.
+- No hay credenciales en archivos ni en el historial de Git.
+- El README y la colección de Postman se abren correctamente desde el repositorio.
+
+Los datos de series pertenecen a TVMaze y están sujetos a sus condiciones de licencia y atribución.
