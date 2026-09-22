@@ -254,29 +254,7 @@ Linux o macOS:
 
 La suite contiene 42 pruebas unitarias y de capa web. Las integraciones HTTP y MongoDB están aisladas mediante dobles de prueba, por lo que no es necesario tener TVMaze o MongoDB disponibles para ejecutarla.
 
-## Seguridad
-
-- Nunca confirmes al repositorio credenciales, archivos `.env` reales o URIs de Atlas.
-- Usa un usuario de base de datos con los permisos mínimos necesarios.
-- Limita la lista de acceso de Atlas a las IP requeridas. Si la evaluación obliga a usar `0.0.0.0/0`, elimínala al terminar.
-- Rota inmediatamente cualquier contraseña que se haya mostrado en una captura, chat o historial de terminal.
-- El campo `summary` procede de TVMaze y puede contener HTML; cualquier cliente web debe sanitizarlo antes de renderizarlo.
-
-## Lista de entrega
-
-Antes de compartir el proyecto:
-
-```powershell
-.\mvnw.cmd clean verify
-git status
-git push origin main
 ```
-
-Después comprueba que:
-
-- El repositorio remoto es privado.
-- El usuario de evaluación `Pinwox` fue agregado como colaborador.
-- No hay credenciales en archivos ni en el historial de Git.
-- El README y la colección de Postman se abren correctamente desde el repositorio.
-
-Los datos de series pertenecen a TVMaze y están sujetos a sus condiciones de licencia y atribución.
+Autor:
+Angel Maya
+22 Septiembre 2026
