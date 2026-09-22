@@ -1,6 +1,8 @@
 spring:
   application:
     name: tvmaze-api
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/tvmaze}
 
 clients:
   tvmaze:

@@ -1,0 +1,7 @@
+spring:
+  mongodb:
+    uri: mongodb://127.0.0.1:27017/tvmaze-test?connectTimeoutMS=100&serverSelectionTimeoutMS=100
+
+logging:
+  level:
+    org.mongodb.driver: OFF
