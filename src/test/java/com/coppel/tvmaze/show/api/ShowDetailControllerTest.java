@@ -2,6 +2,7 @@ package com.coppel.tvmaze.show.api;
 
 import com.coppel.tvmaze.common.error.ApiExceptionHandler;
 import com.coppel.tvmaze.show.application.ShowDetailService;
+import com.coppel.tvmaze.show.application.port.out.ShowDetailsCache;
 import com.coppel.tvmaze.show.application.port.out.ShowDetailsClient;
 import com.coppel.tvmaze.show.domain.ShowDetails;
 import org.junit.jupiter.api.Test;
@@ -59,7 +60,18 @@ class ShowDetailControllerTest {
     }
 
     private MockMvc mockMvc(ShowDetailsClient client) {
-        ShowDetailService service = new ShowDetailService(client);
+        ShowDetailsCache cache = new ShowDetailsCache() {
+            @Override
+            public Optional<ShowDetails> findById(long showId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public void save(ShowDetails show) {
+                // This controller test only verifies the HTTP contract.
+            }
+        };
+        ShowDetailService service = new ShowDetailService(client, cache);
         ShowDetailController controller = new ShowDetailController(service);
         return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ApiExceptionHandler())

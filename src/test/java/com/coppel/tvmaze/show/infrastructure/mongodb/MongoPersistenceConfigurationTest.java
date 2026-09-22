@@ -1,5 +1,6 @@
 package com.coppel.tvmaze.show.infrastructure.mongodb;
 
+import com.coppel.tvmaze.show.application.port.out.ShowDetailsCache;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ class MongoPersistenceConfigurationTest {
     @Autowired
     private MongoConverter converter;
 
+    @Autowired
+    private ShowDetailsCache cache;
+
     @Test
     void configuresTheRepositoryAndMapsTheCompleteShowDocument() {
         Map<String, Object> show = new LinkedHashMap<>();
@@ -40,6 +44,7 @@ class MongoPersistenceConfigurationTest {
         CachedShowDocument restored = converter.read(CachedShowDocument.class, bson);
 
         assertThat(repository).isNotNull();
+        assertThat(cache).isInstanceOf(MongoShowDetailsCache.class);
         assertThat(bson.get("_id")).isEqualTo(1L);
         assertThat(bson.get("cached_at")).isNotNull();
         assertThat(restored).isEqualTo(source);
