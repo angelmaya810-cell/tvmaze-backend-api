@@ -39,6 +39,23 @@ No es necesario instalar Maven: el repositorio incluye Maven Wrapper.
 
 ## Ejecución rápida
 
+Descarga el .jar tvmaze-api-0.0.1-SNAPSHOT.jar
+1. Coloca el JAR en una carpeta
+Copia tvmaze-api-0.0.1-SNAPSHOT.jar a una carpeta y abre PowerShell. Comprueba que esté ahí:
+
+Get-Item .\tvmaze-api-0.0.1-SNAPSHOT.jar
+java -version
+
+2. Configura la conexión de Atlas
+Pega el comando que viene en el drive compartido MONGODB_URI
+
+3. Inicia la aplicación
+java -jar .\tvmaze-api-0.0.1-SNAPSHOT.jar
+
+Espera a ver Started TvMazeApiApplication. Deja abierta esa terminal durante las pruebas. La API estará en http://localhost:8080
+
+
+
 ### Opción A: MongoDB local con Docker
 
 Desde la raíz del proyecto:
