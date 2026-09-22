@@ -1,7 +1,9 @@
 package com.coppel.tvmaze.common.error;
 
 import com.coppel.tvmaze.show.application.InvalidSearchQueryException;
+import com.coppel.tvmaze.show.application.InvalidShowIdException;
 import com.coppel.tvmaze.show.application.ShowCatalogUnavailableException;
+import com.coppel.tvmaze.show.application.ShowNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,13 @@ public class ApiExceptionHandler {
             InvalidSearchQueryException exception
     ) {
         return problem(HttpStatus.BAD_REQUEST, "Invalid search query", exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidShowIdException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidShowId(
+            InvalidShowIdException exception
+    ) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid show ID", exception.getMessage());
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
@@ -47,6 +56,13 @@ public class ApiExceptionHandler {
             ShowCatalogUnavailableException exception
     ) {
         return problem(HttpStatus.BAD_GATEWAY, "Show catalog unavailable", exception.getMessage());
+    }
+
+    @ExceptionHandler(ShowNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleShowNotFound(
+            ShowNotFoundException exception
+    ) {
+        return problem(HttpStatus.NOT_FOUND, "Show not found", exception.getMessage());
     }
 
     private ResponseEntity<ProblemDetail> problem(
