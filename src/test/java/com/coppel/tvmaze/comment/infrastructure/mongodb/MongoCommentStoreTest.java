@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class MongoCommentStoreTest {
@@ -46,5 +48,46 @@ class MongoCommentStoreTest {
                 5,
                 CREATED_AT
         ));
+    }
+
+    @Test
+    void findsCommentsForAllRequestedShowsInOneQuery() {
+        CommentMongoRepository repository = mock(CommentMongoRepository.class);
+        CommentDocument first = new CommentDocument(
+                COMMENT_ID, 1L, "First", 4, CREATED_AT
+        );
+        CommentDocument second = new CommentDocument(
+                "68d17b9510b2ac45f2931235",
+                2L,
+                "Second",
+                5,
+                CREATED_AT.plusSeconds(60)
+        );
+        when(repository.findAllByShowIdInOrderByShowIdAscCreatedAtAsc(List.of(1L, 2L)))
+                .thenReturn(List.of(first, second));
+        MongoCommentStore store = new MongoCommentStore(
+                repository,
+                Clock.fixed(CREATED_AT, ZoneOffset.UTC),
+                () -> COMMENT_ID
+        );
+
+        List<ShowComment> result = store.findByShowIds(List.of(1L, 2L));
+
+        assertThat(result).extracting(ShowComment::showId).containsExactly(1L, 2L);
+        verify(repository).findAllByShowIdInOrderByShowIdAscCreatedAtAsc(List.of(1L, 2L));
+    }
+
+    @Test
+    void skipsMongoForAnEmptyShowList() {
+        CommentMongoRepository repository = mock(CommentMongoRepository.class);
+        MongoCommentStore store = new MongoCommentStore(
+                repository,
+                Clock.fixed(CREATED_AT, ZoneOffset.UTC),
+                () -> COMMENT_ID
+        );
+
+        assertThat(store.findByShowIds(List.of())).isEmpty();
+
+        verifyNoInteractions(repository);
     }
 }

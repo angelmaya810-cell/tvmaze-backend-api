@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.Supplier;
 
 @Component
@@ -41,12 +43,27 @@ public class MongoCommentStore implements CommentStore {
                 rating,
                 Instant.now(clock)
         ));
+        return toDomain(saved);
+    }
+
+    @Override
+    public List<ShowComment> findByShowIds(Collection<Long> showIds) {
+        if (showIds.isEmpty()) {
+            return List.of();
+        }
+
+        return repository.findAllByShowIdInOrderByShowIdAscCreatedAtAsc(showIds).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    private ShowComment toDomain(CommentDocument document) {
         return new ShowComment(
-                saved.id(),
-                saved.showId(),
-                saved.comment(),
-                saved.rating(),
-                saved.createdAt()
+                document.id(),
+                document.showId(),
+                document.comment(),
+                document.rating(),
+                document.createdAt()
         );
     }
 }

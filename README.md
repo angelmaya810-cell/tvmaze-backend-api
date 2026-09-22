@@ -4,9 +4,9 @@ API middleware desarrollada en Java y Spring Boot para consultar TVMaze, almacen
 
 ## Estado
 
-Paso 6 completado: búsqueda, caché de shows y creación de comentarios con calificación.
+Paso 7 completado: búsqueda enriquecida, caché de shows y comentarios con calificación.
 
-Los comentarios se incorporarán a las respuestas de búsqueda y detalle en los siguientes pasos de la prueba técnica.
+Los comentarios ya forman parte de la búsqueda y se incorporarán al detalle del show en el siguiente paso de la prueba técnica.
 
 ## Requisitos
 
@@ -47,7 +47,29 @@ Ejemplo con `curl`:
 curl "http://localhost:8080/api/v1/shows/search?search_query=girls"
 ```
 
-La respuesta contiene exclusivamente `id`, `name`, `channel`, `summary` y `genres`. El canal se obtiene de `network.name` y, cuando no existe, de `webChannel.name`.
+Cada resultado contiene `id`, `name`, `channel`, `summary`, `genres` y `comments`:
+
+```json
+[
+  {
+    "id": 139,
+    "name": "Girls",
+    "channel": "HBO",
+    "summary": "<p>Summary</p>",
+    "genres": ["Drama", "Romance"],
+    "comments": [
+      {
+        "comment": "Great show",
+        "rating": 5
+      }
+    ]
+  }
+]
+```
+
+El canal se obtiene de `network.name` y, cuando no existe, de `webChannel.name`. Los comentarios se consultan para todos los IDs mediante una sola operación de MongoDB, se agrupan por show y se ordenan cronológicamente. Así se evita realizar una consulta adicional por cada resultado.
+
+Cuando un show no tiene comentarios, `comments` contiene un arreglo vacío. El orden de relevancia entregado por TVMaze no se modifica.
 
 Los datos de los shows son proporcionados por [TVMaze](https://www.tvmaze.com/api) bajo su licencia CC BY-SA.
 
@@ -158,3 +180,10 @@ La colección utilizada es `shows_cache`. Cada documento utiliza el ID de TVMaze
 3. En Data Explorer abre `tvmaze.comments`.
 4. Comprueba que el documento tenga `show_id`, `comment`, `rating` y `created_at`.
 5. En la pestaña de índices comprueba que exista `show_id_created_at_idx`.
+
+### Verificación de comentarios en la búsqueda
+
+1. Crea un comentario para un show mediante `POST /api/v1/shows/{showId}/comments`.
+2. Busca por un texto que incluya ese show usando `GET /api/v1/shows/search?search_query=...`.
+3. Comprueba que el resultado correspondiente incluya el arreglo `comments` con `comment` y `rating`.
+4. Comprueba que los resultados sin comentarios incluyan `"comments": []`.
