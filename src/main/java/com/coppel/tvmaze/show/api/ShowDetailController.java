@@ -21,6 +21,6 @@ public class ShowDetailController {
     public ShowDetailResponse findById(
             @PathVariable @Positive(message = "showId must be greater than zero") long showId
     ) {
-        return ShowDetailResponse.from(showDetailService.findById(showId));
+        return ShowDetailResponse.from(showDetailService.findWithCommentsById(showId));
     }
 }

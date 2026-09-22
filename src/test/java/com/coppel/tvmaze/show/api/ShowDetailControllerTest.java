@@ -1,5 +1,7 @@
 package com.coppel.tvmaze.show.api;
 
+import com.coppel.tvmaze.comment.application.port.out.CommentStore;
+import com.coppel.tvmaze.comment.domain.ShowComment;
 import com.coppel.tvmaze.common.error.ApiExceptionHandler;
 import com.coppel.tvmaze.show.application.ShowDetailService;
 import com.coppel.tvmaze.show.application.port.out.ShowDetailsCache;
@@ -9,11 +11,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.time.Instant;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -29,7 +34,14 @@ class ShowDetailControllerTest {
         attributes.put("network", Map.of("id", 2, "name", "CBS"));
         attributes.put("summary", null);
         ShowDetails show = new ShowDetails(1L, attributes);
-        MockMvc mockMvc = mockMvc(showId -> Optional.of(show));
+        ShowComment comment = new ShowComment(
+                "68d17b9510b2ac45f2931234",
+                1L,
+                "Great show",
+                5,
+                Instant.parse("2026-09-22T12:00:00Z")
+        );
+        MockMvc mockMvc = mockMvc(showId -> Optional.of(show), List.of(comment));
 
         mockMvc.perform(get("/api/v1/shows/1"))
                 .andExpect(status().isOk())
@@ -37,12 +49,32 @@ class ShowDetailControllerTest {
                 .andExpect(jsonPath("$.name").value("Under the Dome"))
                 .andExpect(jsonPath("$.genres[1]").value("Science-Fiction"))
                 .andExpect(jsonPath("$.network.name").value("CBS"))
-                .andExpect(jsonPath("$.summary").isEmpty());
+                .andExpect(jsonPath("$.summary").isEmpty())
+                .andExpect(jsonPath("$.comments[0].comment").value("Great show"))
+                .andExpect(jsonPath("$.comments[0].rating").value(5))
+                .andExpect(jsonPath("$.comments[0].id").doesNotExist())
+                .andExpect(jsonPath("$.comments[0].createdAt").doesNotExist());
+
+        assertThat(show.attributes()).doesNotContainKey("comments");
+    }
+
+    @Test
+    void returnsAnEmptyCommentArrayWhenTheShowHasNoComments() throws Exception {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("id", 1L);
+        attributes.put("name", "Under the Dome");
+        ShowDetails show = new ShowDetails(1L, attributes);
+        MockMvc mockMvc = mockMvc(showId -> Optional.of(show), List.of());
+
+        mockMvc.perform(get("/api/v1/shows/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.comments").isArray())
+                .andExpect(jsonPath("$.comments").isEmpty());
     }
 
     @Test
     void returnsNotFoundForUnknownShows() throws Exception {
-        MockMvc mockMvc = mockMvc(showId -> Optional.empty());
+        MockMvc mockMvc = mockMvc(showId -> Optional.empty(), List.of());
 
         mockMvc.perform(get("/api/v1/shows/999999"))
                 .andExpect(status().isNotFound())
@@ -52,14 +84,17 @@ class ShowDetailControllerTest {
 
     @Test
     void rejectsNonPositiveShowIds() throws Exception {
-        MockMvc mockMvc = mockMvc(showId -> Optional.empty());
+        MockMvc mockMvc = mockMvc(showId -> Optional.empty(), List.of());
 
         mockMvc.perform(get("/api/v1/shows/0"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Request validation failed"));
     }
 
-    private MockMvc mockMvc(ShowDetailsClient client) {
+    private MockMvc mockMvc(
+            ShowDetailsClient client,
+            List<ShowComment> comments
+    ) {
         ShowDetailsCache cache = new ShowDetailsCache() {
             @Override
             public Optional<ShowDetails> findById(long showId) {
@@ -71,7 +106,18 @@ class ShowDetailControllerTest {
                 // This controller test only verifies the HTTP contract.
             }
         };
-        ShowDetailService service = new ShowDetailService(client, cache);
+        CommentStore commentStore = new CommentStore() {
+            @Override
+            public ShowComment save(long showId, String comment, int rating) {
+                throw new UnsupportedOperationException("Not used by this test");
+            }
+
+            @Override
+            public List<ShowComment> findByShowIds(Collection<Long> showIds) {
+                return comments;
+            }
+        };
+        ShowDetailService service = new ShowDetailService(client, cache, commentStore);
         ShowDetailController controller = new ShowDetailController(service);
         return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ApiExceptionHandler())

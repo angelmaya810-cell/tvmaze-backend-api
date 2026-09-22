@@ -4,9 +4,9 @@ API middleware desarrollada en Java y Spring Boot para consultar TVMaze, almacen
 
 ## Estado
 
-Paso 7 completado: búsqueda enriquecida, caché de shows y comentarios con calificación.
+Paso 8 completado: búsqueda y detalle enriquecidos, caché de shows y comentarios con calificación.
 
-Los comentarios ya forman parte de la búsqueda y se incorporarán al detalle del show en el siguiente paso de la prueba técnica.
+Los tres endpoints funcionales solicitados están implementados. El siguiente paso corresponde al cierre de documentación y entrega.
 
 ## Requisitos
 
@@ -87,7 +87,23 @@ Ejemplo con `curl`:
 curl "http://localhost:8080/api/v1/shows/1"
 ```
 
-La respuesta conserva el objeto completo entregado por TVMaze. Un ID inexistente devuelve `404 Not Found` y un ID que no sea positivo devuelve `400 Bad Request`.
+La respuesta conserva el objeto completo entregado por TVMaze y agrega los comentarios actuales:
+
+```json
+{
+  "id": 1,
+  "name": "Under the Dome",
+  "genres": ["Drama", "Science-Fiction", "Thriller"],
+  "comments": [
+    {
+      "comment": "Great show",
+      "rating": 5
+    }
+  ]
+}
+```
+
+Un ID inexistente devuelve `404 Not Found` y un ID que no sea positivo devuelve `400 Bad Request`. Cuando no existen comentarios, la respuesta incluye `"comments": []`.
 
 La consulta utiliza un caché persistente:
 
@@ -96,6 +112,8 @@ La consulta utiliza un caché persistente:
 3. Si no existe, consulta TVMaze, guarda la respuesta completa y la devuelve.
 
 Las solicitudes simultáneas pueden consultar TVMaze más de una vez ante el mismo fallo de caché, pero las escrituras son idempotentes porque el ID del show se utiliza como `_id`.
+
+Los comentarios se consultan por separado en cada lectura del detalle, incluso si el show proviene del caché. De esta manera siempre están actualizados y no se modifica ni duplica el objeto almacenado en `shows_cache`.
 
 ## Crear comentarios
 
@@ -187,3 +205,10 @@ La colección utilizada es `shows_cache`. Cada documento utiliza el ID de TVMaze
 2. Busca por un texto que incluya ese show usando `GET /api/v1/shows/search?search_query=...`.
 3. Comprueba que el resultado correspondiente incluya el arreglo `comments` con `comment` y `rating`.
 4. Comprueba que los resultados sin comentarios incluyan `"comments": []`.
+
+### Verificación de comentarios en el detalle
+
+1. Crea un comentario mediante `POST /api/v1/shows/1/comments`.
+2. Ejecuta `GET /api/v1/shows/1`.
+3. Comprueba que se conserve la respuesta completa de TVMaze y que `comments` contenga el comentario creado.
+4. Crea un segundo comentario y repite el `GET`; debe aparecer inmediatamente aunque el show ya exista en `shows_cache`.
